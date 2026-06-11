@@ -2513,15 +2513,27 @@ async function connectBot() {
     markOnlineOnConnect: true,
     generateHighQualityLinkPreview: true,
     defaultQueryTimeoutMs: 30000,
+    printQRInTerminal: false,
   });
 
-  // ── KONEKSI UPDATE ─────────────────────────────────────────
-  sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
-    if (qr) {
-      log("[QR] Scan QR Code menggunakan WhatsApp di HP kamu!");
-      qrcode.generate(qr, { small: true });
+  // ── PAIRING CODE LOGIN ─────────────────────────────────────
+  if (!sock.authState.creds.registered) {
+    const nomor = config.ownerNumber.replace(/[^0-9]/g, "");
+    log(`[PAIRING] Meminta pairing code untuk nomor: ${nomor}`);
+    await new Promise(r => setTimeout(r, 3000));
+    try {
+      const code = await sock.requestPairingCode(nomor);
+      log(`[PAIRING CODE] ===========================`);
+      log(`[PAIRING CODE] Kode kamu: ${code}`);
+      log(`[PAIRING CODE] ===========================`);
+      log(`[PAIRING CODE] Buka WhatsApp → Perangkat Tertaut → Tautkan dengan nomor telepon → Masukkan kode di atas`);
+    } catch (e) {
+      log(`[PAIRING ERROR] ${e.message}`);
     }
+  }
 
+  // ── KONEKSI UPDATE ─────────────────────────────────────────
+  sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
     if (connection === "close") {
       const code = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = code !== DisconnectReason.loggedOut;
